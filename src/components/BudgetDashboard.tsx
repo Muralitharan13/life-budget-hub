@@ -34,6 +34,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import SalaryConfig from "./SalaryConfig";
+import InvestmentConfig from "./InvestmentConfig";
 
 interface BudgetAllocation {
   need: number;
@@ -47,6 +48,34 @@ interface CategorySpending {
   want: number;
   savings: number;
   investments: number;
+}
+
+interface Fund {
+  id: string;
+  name: string;
+  allocatedAmount: number;
+}
+
+interface PortfolioCategory {
+  id: string;
+  name: string;
+  allocationType: 'percentage' | 'amount';
+  allocationValue: number;
+  allocatedAmount: number;
+  funds: Fund[];
+}
+
+interface Portfolio {
+  id: string;
+  name: string;
+  allocationType: 'percentage' | 'amount';
+  allocationValue: number;
+  allocatedAmount: number;
+  categories: PortfolioCategory[];
+}
+
+interface InvestmentPlan {
+  portfolios: Portfolio[];
 }
 
 interface ExpenseEntry {
@@ -68,6 +97,7 @@ interface UserProfile {
   budgetAllocation: BudgetAllocation;
   expenses: ExpenseEntry[];
   customTags: string[];
+  investmentPlan: InvestmentPlan;
 }
 
 const DEFAULT_TAGS = {
@@ -117,7 +147,8 @@ const BudgetDashboard = () => {
       budgetPercentage: 70,
       budgetAllocation: { need: 50, want: 30, savings: 15, investments: 5 },
       expenses: [],
-      customTags: []
+      customTags: [],
+      investmentPlan: { portfolios: [] }
     },
     valar: {
       name: 'Valar',
@@ -126,7 +157,8 @@ const BudgetDashboard = () => {
       budgetPercentage: 70,
       budgetAllocation: { need: 50, want: 30, savings: 15, investments: 5 },
       expenses: [],
-      customTags: []
+      customTags: [],
+      investmentPlan: { portfolios: [] }
     }
   });
 
@@ -188,6 +220,18 @@ const BudgetDashboard = () => {
         budgetPercentage: percentage
       }
     }));
+  };
+
+  const handleInvestmentPlanUpdate = (plan: InvestmentPlan) => {
+    const updatedProfiles = {
+      ...profiles,
+      [currentUser]: {
+        ...profiles[currentUser],
+        investmentPlan: plan
+      }
+    };
+    
+    saveProfiles(updatedProfiles);
   };
 
   const switchUser = () => {
@@ -1116,6 +1160,15 @@ const BudgetDashboard = () => {
               currentSalary={currentProfile.salary}
               currentBudgetPercentage={currentProfile.budgetPercentage}
             />
+            
+            <div className="mt-8">
+              <InvestmentConfig
+                totalInvestmentAmount={allocatedAmounts.investments}
+                currentUser={currentUser}
+                onInvestmentPlanUpdate={handleInvestmentPlanUpdate}
+                currentInvestmentPlan={currentProfile.investmentPlan}
+              />
+            </div>
           </TabsContent>
         </Tabs>
       </div>
