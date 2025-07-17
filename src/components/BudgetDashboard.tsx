@@ -16,7 +16,8 @@ import {
   Edit,
   Trash2,
   Filter,
-  Search
+  Search,
+  UserCheck
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,8 +27,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import SalaryConfig from "./SalaryConfig";
 
@@ -52,38 +56,95 @@ interface ExpenseEntry {
   amount: number;
   notes: string;
   category: 'need' | 'want' | 'savings' | 'investments';
+  tag?: string;
+  paymentType?: 'SENT BY ME' | 'SENT TO VALAR' | 'SENT TO MURALI';
 }
+
+interface UserProfile {
+  name: string;
+  partnerName: string;
+  salary: number;
+  budgetPercentage: number;
+  budgetAllocation: BudgetAllocation;
+  expenses: ExpenseEntry[];
+  customTags: string[];
+}
+
+const DEFAULT_TAGS = {
+  need: ['EMI\'s', 'Entertainments', 'Fuel', 'Gas', 'Grocessories', 'Hotels/Food', 'Mobile recharges', 'Others', 'Rent', 'Transportation'],
+  want: ['Entertainments', 'Hobbies', 'Movies', 'Others', 'Restaurants', 'Shopping'],
+  savings: ['Emergency Fund', 'Fixed Deposit', 'Others', 'Savings Account'],
+  investments: ['Mutual Funds', 'Others', 'PPF', 'Stocks', 'SIP']
+};
+
+const TAG_COLORS = {
+  'Rent': 'bg-red-100 text-red-800 border-red-200',
+  'Hotels/Food': 'bg-orange-100 text-orange-800 border-orange-200',
+  'Transportation': 'bg-blue-100 text-blue-800 border-blue-200',
+  'Grocessories': 'bg-green-100 text-green-800 border-green-200',
+  'Mobile recharges': 'bg-purple-100 text-purple-800 border-purple-200',
+  'EMI\'s': 'bg-pink-100 text-pink-800 border-pink-200',
+  'Entertainments': 'bg-yellow-100 text-yellow-800 border-yellow-200',
+  'Gas': 'bg-indigo-100 text-indigo-800 border-indigo-200',
+  'Fuel': 'bg-gray-100 text-gray-800 border-gray-200',
+  'Others': 'bg-slate-100 text-slate-800 border-slate-200',
+  'Hobbies': 'bg-teal-100 text-teal-800 border-teal-200',
+  'Movies': 'bg-cyan-100 text-cyan-800 border-cyan-200',
+  'Restaurants': 'bg-amber-100 text-amber-800 border-amber-200',
+  'Shopping': 'bg-rose-100 text-rose-800 border-rose-200',
+  'Emergency Fund': 'bg-emerald-100 text-emerald-800 border-emerald-200',
+  'Fixed Deposit': 'bg-lime-100 text-lime-800 border-lime-200',
+  'Savings Account': 'bg-green-100 text-green-800 border-green-200',
+  'Mutual Funds': 'bg-blue-100 text-blue-800 border-blue-200',
+  'PPF': 'bg-indigo-100 text-indigo-800 border-indigo-200',
+  'Stocks': 'bg-purple-100 text-purple-800 border-purple-200',
+  'SIP': 'bg-pink-100 text-pink-800 border-pink-200'
+};
 
 const BudgetDashboard = () => {
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
-  const [actualSalary, setActualSalary] = useState(20000);
-  const [budgetPercentage, setBudgetPercentage] = useState(70);
+  const [currentUser, setCurrentUser] = useState<'murali' | 'valar'>('murali');
   const [showConfigHint, setShowConfigHint] = useState(false);
-  const [expenses, setExpenses] = useState<ExpenseEntry[]>([]);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [filterDate, setFilterDate] = useState('');
   const { toast } = useToast();
-  
-  const [budgetAllocation, setBudgetAllocation] = useState<BudgetAllocation>({
-    need: 50,
-    want: 30,
-    savings: 15,
-    investments: 5
+
+  const [profiles, setProfiles] = useState<Record<'murali' | 'valar', UserProfile>>({
+    murali: {
+      name: 'Murali',
+      partnerName: 'Valar',
+      salary: 20000,
+      budgetPercentage: 70,
+      budgetAllocation: { need: 50, want: 30, savings: 15, investments: 5 },
+      expenses: [],
+      customTags: []
+    },
+    valar: {
+      name: 'Valar',
+      partnerName: 'Murali',
+      salary: 15000,
+      budgetPercentage: 70,
+      budgetAllocation: { need: 50, want: 30, savings: 15, investments: 5 },
+      expenses: [],
+      customTags: []
+    }
   });
+
+  const currentProfile = profiles[currentUser];
   
   const monthNames = [
     "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"
   ];
 
-  const calculatedTotalBudget = Math.round(actualSalary * budgetPercentage / 100);
+  const calculatedTotalBudget = Math.round(currentProfile.salary * currentProfile.budgetPercentage / 100);
 
   const getAllocatedAmounts = () => {
     return {
-      need: Math.round(calculatedTotalBudget * budgetAllocation.need / 100),
-      want: Math.round(calculatedTotalBudget * budgetAllocation.want / 100),
-      savings: Math.round(calculatedTotalBudget * budgetAllocation.savings / 100),
-      investments: Math.round(calculatedTotalBudget * budgetAllocation.investments / 100)
+      need: Math.round(calculatedTotalBudget * currentProfile.budgetAllocation.need / 100),
+      want: Math.round(calculatedTotalBudget * currentProfile.budgetAllocation.want / 100),
+      savings: Math.round(calculatedTotalBudget * currentProfile.budgetAllocation.savings / 100),
+      investments: Math.round(calculatedTotalBudget * currentProfile.budgetAllocation.investments / 100)
     };
   };
 
@@ -91,7 +152,7 @@ const BudgetDashboard = () => {
 
   // Calculate spending from expenses
   const getSpendingByCategory = () => {
-    const currentMonthExpenses = expenses.filter(expense => {
+    const currentMonthExpenses = currentProfile.expenses.filter(expense => {
       const expenseDate = new Date(expense.date);
       return expenseDate.getMonth() === selectedMonth;
     });
@@ -106,52 +167,66 @@ const BudgetDashboard = () => {
 
   const categorySpending = getSpendingByCategory();
   
-  // Corrected total spent calculation: Total Budget - Need - Savings - Investments
-  const totalSpent = calculatedTotalBudget - categorySpending.need - categorySpending.savings - categorySpending.investments;
-  const totalSaved = categorySpending.savings + categorySpending.investments;
+  // Updated total spent calculation: sum of all category spending
+  const totalSpent = categorySpending.need + categorySpending.want + categorySpending.savings + categorySpending.investments;
+  const totalRemaining = calculatedTotalBudget - totalSpent;
 
   const handleSalaryUpdate = (salary: number, percentage: number) => {
-    setActualSalary(salary);
-    setBudgetPercentage(percentage);
-    localStorage.setItem('budgetConfig', JSON.stringify({ salary, percentage }));
+    setProfiles(prev => ({
+      ...prev,
+      [currentUser]: {
+        ...prev[currentUser],
+        salary,
+        budgetPercentage: percentage
+      }
+    }));
+    localStorage.setItem('budgetProfiles', JSON.stringify({
+      ...profiles,
+      [currentUser]: {
+        ...profiles[currentUser],
+        salary,
+        budgetPercentage: percentage
+      }
+    }));
+  };
+
+  const switchUser = () => {
+    setCurrentUser(prev => prev === 'murali' ? 'valar' : 'murali');
   };
 
   useEffect(() => {
-    const saved = localStorage.getItem('budgetConfig');
+    const saved = localStorage.getItem('budgetProfiles');
     if (saved) {
-      const { salary, percentage } = JSON.parse(saved);
-      setActualSalary(salary);
-      setBudgetPercentage(percentage);
-    }
-    
-    const savedAllocation = localStorage.getItem('budgetAllocation');
-    if (savedAllocation) {
-      setBudgetAllocation(JSON.parse(savedAllocation));
-    }
-
-    const savedExpenses = localStorage.getItem('expenses');
-    if (savedExpenses) {
-      setExpenses(JSON.parse(savedExpenses));
+      setProfiles(JSON.parse(saved));
     }
   }, []);
 
-  const saveExpenses = (newExpenses: ExpenseEntry[]) => {
-    setExpenses(newExpenses);
-    localStorage.setItem('expenses', JSON.stringify(newExpenses));
+  const saveProfiles = (newProfiles: typeof profiles) => {
+    setProfiles(newProfiles);
+    localStorage.setItem('budgetProfiles', JSON.stringify(newProfiles));
   };
 
-  const addExpense = (category: string, spentFor: string, amount: number, notes: string) => {
+  const addExpense = (category: string, spentFor: string, amount: number, notes: string, tag?: string, paymentType?: string) => {
     const newExpense: ExpenseEntry = {
       id: Date.now().toString(),
       date: selectedDate,
       spentFor,
       amount,
       notes,
-      category: category as 'need' | 'want' | 'savings' | 'investments'
+      category: category as 'need' | 'want' | 'savings' | 'investments',
+      tag,
+      paymentType: paymentType as 'SENT BY ME' | 'SENT TO VALAR' | 'SENT TO MURALI'
     };
     
-    const updatedExpenses = [...expenses, newExpense];
-    saveExpenses(updatedExpenses);
+    const updatedProfiles = {
+      ...profiles,
+      [currentUser]: {
+        ...profiles[currentUser],
+        expenses: [...profiles[currentUser].expenses, newExpense]
+      }
+    };
+    
+    saveProfiles(updatedProfiles);
     
     toast({
       title: "Expense Added",
@@ -159,11 +234,18 @@ const BudgetDashboard = () => {
     });
   };
 
-  const updateExpense = (id: string, spentFor: string, amount: number, notes: string) => {
-    const updatedExpenses = expenses.map(expense =>
-      expense.id === id ? { ...expense, spentFor, amount, notes } : expense
-    );
-    saveExpenses(updatedExpenses);
+  const updateExpense = (id: string, spentFor: string, amount: number, notes: string, tag?: string, paymentType?: string) => {
+    const updatedProfiles = {
+      ...profiles,
+      [currentUser]: {
+        ...profiles[currentUser],
+        expenses: profiles[currentUser].expenses.map(expense =>
+          expense.id === id ? { ...expense, spentFor, amount, notes, tag, paymentType } : expense
+        )
+      }
+    };
+    
+    saveProfiles(updatedProfiles);
     
     toast({
       title: "Expense Updated",
@@ -172,13 +254,45 @@ const BudgetDashboard = () => {
   };
 
   const deleteExpense = (id: string) => {
-    const updatedExpenses = expenses.filter(expense => expense.id !== id);
-    saveExpenses(updatedExpenses);
+    const updatedProfiles = {
+      ...profiles,
+      [currentUser]: {
+        ...profiles[currentUser],
+        expenses: profiles[currentUser].expenses.filter(expense => expense.id !== id)
+      }
+    };
+    
+    saveProfiles(updatedProfiles);
     
     toast({
       title: "Expense Deleted",
       description: "Expense has been removed",
     });
+  };
+
+  const addCustomTag = (category: string, newTag: string) => {
+    const updatedProfiles = {
+      ...profiles,
+      [currentUser]: {
+        ...profiles[currentUser],
+        customTags: [...profiles[currentUser].customTags, `${category}:${newTag}`]
+      }
+    };
+    
+    saveProfiles(updatedProfiles);
+  };
+
+  const getTagsForCategory = (category: string) => {
+    const defaultTags = DEFAULT_TAGS[category as keyof typeof DEFAULT_TAGS] || [];
+    const customTags = profiles[currentUser].customTags
+      .filter(tag => tag.startsWith(`${category}:`))
+      .map(tag => tag.split(':')[1]);
+    
+    return [...defaultTags, ...customTags].sort();
+  };
+
+  const getTagColor = (tag: string) => {
+    return TAG_COLORS[tag as keyof typeof TAG_COLORS] || 'bg-gray-100 text-gray-800 border-gray-200';
   };
 
   const QuickStatsCard = ({ title, amount, icon: Icon, variant = "default", change }: any) => (
@@ -287,22 +401,41 @@ const BudgetDashboard = () => {
     const [spentFor, setSpentFor] = useState('');
     const [amount, setAmount] = useState('');
     const [notes, setNotes] = useState('');
+    const [selectedTag, setSelectedTag] = useState('');
+    const [customTag, setCustomTag] = useState('');
+    const [paymentType, setPaymentType] = useState('SENT BY ME');
+    const [showCustomTag, setShowCustomTag] = useState(false);
+
+    const tags = getTagsForCategory(category);
+    const paymentOptions = currentUser === 'murali' 
+      ? ['SENT BY ME', 'SENT TO VALAR']
+      : ['SENT BY ME', 'SENT TO MURALI'];
 
     const handleSubmit = (e: React.FormEvent) => {
       e.preventDefault();
-      if (!spentFor || !amount) {
+      if (!spentFor || !amount || !selectedTag) {
         toast({
           title: "Missing Information",
-          description: "Please fill in all required fields",
+          description: "Please fill in all required fields including tag",
           variant: "destructive",
         });
         return;
       }
 
-      addExpense(category, spentFor, parseFloat(amount), notes);
+      let finalTag = selectedTag;
+      if (selectedTag === 'Others' && customTag) {
+        finalTag = customTag;
+        addCustomTag(category, customTag);
+      }
+
+      addExpense(category, spentFor, parseFloat(amount), notes, finalTag, paymentType);
       setSpentFor('');
       setAmount('');
       setNotes('');
+      setSelectedTag('');
+      setCustomTag('');
+      setPaymentType('SENT BY ME');
+      setShowCustomTag(false);
       setOpen(false);
     };
 
@@ -314,7 +447,7 @@ const BudgetDashboard = () => {
             Add {categoryTitle} Entry
           </Button>
         </DialogTrigger>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Icon className="h-5 w-5" />
@@ -355,6 +488,45 @@ const BudgetDashboard = () => {
               />
             </div>
             <div className="space-y-2">
+              <Label htmlFor="tag">Tag *</Label>
+              <Select value={selectedTag} onValueChange={(value) => {
+                setSelectedTag(value);
+                setShowCustomTag(value === 'Others');
+              }}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a tag" />
+                </SelectTrigger>
+                <SelectContent>
+                  {tags.map((tag) => (
+                    <SelectItem key={tag} value={tag}>{tag}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {showCustomTag && (
+              <div className="space-y-2">
+                <Label htmlFor="customTag">Custom Tag Name *</Label>
+                <Input
+                  id="customTag"
+                  value={customTag}
+                  onChange={(e) => setCustomTag(e.target.value)}
+                  placeholder="Enter custom tag name"
+                  required
+                />
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label>Payment Type *</Label>
+              <RadioGroup value={paymentType} onValueChange={setPaymentType}>
+                {paymentOptions.map((option) => (
+                  <div key={option} className="flex items-center space-x-2">
+                    <RadioGroupItem value={option} id={option} />
+                    <Label htmlFor={option}>{option}</Label>
+                  </div>
+                ))}
+              </RadioGroup>
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="notes">Notes</Label>
               <Textarea
                 id="notes"
@@ -381,19 +553,34 @@ const BudgetDashboard = () => {
     const [spentFor, setSpentFor] = useState(expense.spentFor);
     const [amount, setAmount] = useState(expense.amount.toString());
     const [notes, setNotes] = useState(expense.notes);
+    const [selectedTag, setSelectedTag] = useState(expense.tag || '');
+    const [customTag, setCustomTag] = useState('');
+    const [paymentType, setPaymentType] = useState(expense.paymentType || 'SENT BY ME');
+    const [showCustomTag, setShowCustomTag] = useState(false);
+
+    const tags = getTagsForCategory(expense.category);
+    const paymentOptions = currentUser === 'murali' 
+      ? ['SENT BY ME', 'SENT TO VALAR']
+      : ['SENT BY ME', 'SENT TO MURALI'];
 
     const handleSubmit = (e: React.FormEvent) => {
       e.preventDefault();
-      if (!spentFor || !amount) {
+      if (!spentFor || !amount || !selectedTag) {
         toast({
           title: "Missing Information",
-          description: "Please fill in all required fields",
+          description: "Please fill in all required fields including tag",
           variant: "destructive",
         });
         return;
       }
 
-      updateExpense(expense.id, spentFor, parseFloat(amount), notes);
+      let finalTag = selectedTag;
+      if (selectedTag === 'Others' && customTag) {
+        finalTag = customTag;
+        addCustomTag(expense.category, customTag);
+      }
+
+      updateExpense(expense.id, spentFor, parseFloat(amount), notes, finalTag, paymentType);
       setOpen(false);
     };
 
@@ -404,7 +591,7 @@ const BudgetDashboard = () => {
             <Edit className="h-4 w-4" />
           </Button>
         </DialogTrigger>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Edit Expense</DialogTitle>
           </DialogHeader>
@@ -430,6 +617,45 @@ const BudgetDashboard = () => {
               />
             </div>
             <div className="space-y-2">
+              <Label htmlFor="edit-tag">Tag *</Label>
+              <Select value={selectedTag} onValueChange={(value) => {
+                setSelectedTag(value);
+                setShowCustomTag(value === 'Others');
+              }}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a tag" />
+                </SelectTrigger>
+                <SelectContent>
+                  {tags.map((tag) => (
+                    <SelectItem key={tag} value={tag}>{tag}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {showCustomTag && (
+              <div className="space-y-2">
+                <Label htmlFor="edit-customTag">Custom Tag Name *</Label>
+                <Input
+                  id="edit-customTag"
+                  value={customTag}
+                  onChange={(e) => setCustomTag(e.target.value)}
+                  placeholder="Enter custom tag name"
+                  required
+                />
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label>Payment Type *</Label>
+              <RadioGroup value={paymentType} onValueChange={setPaymentType}>
+                {paymentOptions.map((option) => (
+                  <div key={option} className="flex items-center space-x-2">
+                    <RadioGroupItem value={option} id={`edit-${option}`} />
+                    <Label htmlFor={`edit-${option}`}>{option}</Label>
+                  </div>
+                ))}
+              </RadioGroup>
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="edit-notes">Notes</Label>
               <Textarea
                 id="edit-notes"
@@ -451,7 +677,7 @@ const BudgetDashboard = () => {
   };
 
   const ExpenseTable = ({ category, categoryTitle }: { category: string; categoryTitle: string }) => {
-    const categoryExpenses = expenses.filter(expense => {
+    const categoryExpenses = currentProfile.expenses.filter(expense => {
       const expenseDate = new Date(expense.date);
       const matchesCategory = expense.category === category;
       const matchesMonth = expenseDate.getMonth() === selectedMonth;
@@ -488,8 +714,10 @@ const BudgetDashboard = () => {
               <TableRow>
                 <TableHead className="w-16">S.No</TableHead>
                 <TableHead>Date</TableHead>
+                <TableHead>Tag</TableHead>
                 <TableHead>Spent For</TableHead>
                 <TableHead>Amount</TableHead>
+                <TableHead>Payment Type</TableHead>
                 <TableHead>Notes</TableHead>
                 <TableHead className="w-24">Action</TableHead>
               </TableRow>
@@ -497,17 +725,29 @@ const BudgetDashboard = () => {
             <TableBody>
               {categoryExpenses.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                     No entries found for {categoryTitle.toLowerCase()}
                   </TableCell>
                 </TableRow>
               ) : (
                 categoryExpenses.map((expense, index) => (
-                  <TableRow key={expense.id}>
+                  <TableRow key={expense.id} className={expense.tag ? getTagColor(expense.tag) : ''}>
                     <TableCell>{index + 1}</TableCell>
                     <TableCell>{new Date(expense.date).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      {expense.tag && (
+                        <Badge variant="outline" className={getTagColor(expense.tag)}>
+                          {expense.tag}
+                        </Badge>
+                      )}
+                    </TableCell>
                     <TableCell>{expense.spentFor}</TableCell>
                     <TableCell>₹{expense.amount.toLocaleString()}</TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className="text-xs">
+                        {expense.paymentType || 'SENT BY ME'}
+                      </Badge>
+                    </TableCell>
                     <TableCell className="max-w-xs truncate">{expense.notes || '-'}</TableCell>
                     <TableCell>
                       <div className="flex items-center space-x-1">
@@ -559,6 +799,20 @@ const BudgetDashboard = () => {
                 <Wallet className="h-6 w-6 text-primary-foreground" />
               </div>
               <h1 className="text-2xl font-bold text-foreground">Budget Tracker</h1>
+              <div className="flex items-center space-x-2">
+                <Badge variant="outline" className="text-sm">
+                  {currentProfile.name}'s Profile
+                </Badge>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={switchUser}
+                  className="flex items-center gap-2"
+                >
+                  <UserCheck className="h-4 w-4" />
+                  Switch to {currentUser === 'murali' ? 'Valar' : 'Murali'}
+                </Button>
+              </div>
             </div>
             <div className="flex items-center space-x-4">
               <select 
@@ -620,11 +874,11 @@ const BudgetDashboard = () => {
         <div className="mb-6 flex justify-between items-center p-4 bg-gradient-to-r from-primary/5 to-success/5 rounded-lg border">
           <div>
             <p className="text-sm text-muted-foreground">
-              Budget calculated from <strong>{budgetPercentage}%</strong> of monthly salary
+              Budget calculated from <strong>{currentProfile.budgetPercentage}%</strong> of monthly salary
             </p>
             <p className="text-xs text-muted-foreground">
               Current budget: ₹{calculatedTotalBudget.toLocaleString()}
-              {actualSalary > 0 && ` (from ₹${actualSalary.toLocaleString()} salary)`}
+              {currentProfile.salary > 0 && ` (from ₹${currentProfile.salary.toLocaleString()} salary)`}
             </p>
           </div>
           <Button
@@ -649,7 +903,7 @@ const BudgetDashboard = () => {
 
         {/* Main Navigation Tabs */}
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-7 bg-muted p-1 rounded-lg">
+          <TabsList className="grid w-full grid-cols-6 bg-muted p-1 rounded-lg">
             <TabsTrigger value="overview" className="flex items-center gap-2">
               <DollarSign className="h-4 w-4" />
               <span className="hidden sm:inline">Overview</span>
@@ -669,10 +923,6 @@ const BudgetDashboard = () => {
             <TabsTrigger value="investments" className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
               <span className="hidden sm:inline">Investments</span>
-            </TabsTrigger>
-            <TabsTrigger value="wife-expenses" className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              <span className="hidden sm:inline">Wife's Expenses</span>
             </TabsTrigger>
             <TabsTrigger value="config" className="flex items-center gap-2 text-warning" title="Salary Configuration (Password Protected)">
               <Lock className="h-4 w-4" />
@@ -723,7 +973,7 @@ const BudgetDashboard = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="text-center p-4 bg-background/50 rounded-lg">
                       <p className="text-sm text-muted-foreground">Total Allocated</p>
                       <p className="text-2xl font-bold text-primary">₹{calculatedTotalBudget.toLocaleString()}</p>
@@ -731,15 +981,12 @@ const BudgetDashboard = () => {
                     <div className="text-center p-4 bg-background/50 rounded-lg">
                       <p className="text-sm text-muted-foreground">Total Spent</p>
                       <p className="text-2xl font-bold text-destructive">₹{totalSpent.toLocaleString()}</p>
-                      <p className="text-xs text-muted-foreground mt-1">Budget - Need - Savings - Investments</p>
-                    </div>
-                    <div className="text-center p-4 bg-background/50 rounded-lg">
-                      <p className="text-sm text-muted-foreground">Total Saved</p>
-                      <p className="text-2xl font-bold text-success">₹{totalSaved.toLocaleString()}</p>
+                      <p className="text-xs text-muted-foreground mt-1">Need + Want + Savings + Investments</p>
                     </div>
                     <div className="text-center p-4 bg-background/50 rounded-lg">
                       <p className="text-sm text-muted-foreground">Remaining</p>
-                      <p className="text-2xl font-bold text-accent">₹{(calculatedTotalBudget - categorySpending.need - categorySpending.want).toLocaleString()}</p>
+                      <p className="text-2xl font-bold text-accent">₹{totalRemaining.toLocaleString()}</p>
+                      <p className="text-xs text-muted-foreground mt-1">Total Allocated - Total Spent</p>
                     </div>
                   </div>
                 </CardContent>
@@ -863,22 +1110,11 @@ const BudgetDashboard = () => {
             </div>
           </TabsContent>
 
-          <TabsContent value="wife-expenses">
-            <Card className="shadow-card">
-              <CardHeader>
-                <CardTitle>Wife's Daily Expenses</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">Wife's expense tracking coming soon...</p>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
           <TabsContent value="config">
             <SalaryConfig 
               onSalaryUpdate={handleSalaryUpdate}
-              currentSalary={actualSalary}
-              currentBudgetPercentage={budgetPercentage}
+              currentSalary={currentProfile.salary}
+              currentBudgetPercentage={currentProfile.budgetPercentage}
             />
           </TabsContent>
         </Tabs>
