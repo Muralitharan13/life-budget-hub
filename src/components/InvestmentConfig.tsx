@@ -131,7 +131,6 @@ const InvestmentConfig = ({
       allocationType,
       allocationValue,
       allocatedAmount: 0,
-      categories: []
       categories: [],
       investedAmount: 0,
       enableCategories: true,
