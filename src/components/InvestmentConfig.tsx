@@ -315,7 +315,11 @@ const InvestmentConfig = ({
   const PortfolioDialog = ({ portfolio, onSave }: { portfolio?: Portfolio; onSave: (name: string, allocationType: 'percentage' | 'amount', allocationValue: number, enableCategories?: boolean, enableFunds?: boolean) => void }) => {
     const [open, setOpen] = useState(false);
     const [name, setName] = useState(portfolio?.name || '');
-    const [allocationType, setAllocationType] = useState<'percentage' | 'amount'>(portfolio?.allocationType || 'percentage');
+    const [allocationType, setAllocationType] = useState<'percentage' | 'amount'>(
+      portfolio?.allocationType === 'percentage' || portfolio?.allocationType === 'amount' 
+        ? portfolio.allocationType 
+        : 'percentage'
+    );
     const [allocationValue, setAllocationValue] = useState(portfolio?.allocationValue?.toString() || '');
     const [enableCategories, setEnableCategories] = useState(portfolio?.enableCategories ?? true);
     const [enableFunds, setEnableFunds] = useState(portfolio?.enableFunds ?? true);
@@ -404,7 +408,11 @@ const InvestmentConfig = ({
   const CategoryDialog = ({ portfolioId, category, onSave }: { portfolioId: string; category?: PortfolioCategory; onSave: (name: string, allocationType: 'percentage' | 'amount', allocationValue: number) => void }) => {
     const [open, setOpen] = useState(false);
     const [name, setName] = useState(category?.name || '');
-    const [allocationType, setAllocationType] = useState<'percentage' | 'amount'>(category?.allocationType || 'percentage');
+    const [allocationType, setAllocationType] = useState<'percentage' | 'amount'>(
+      category?.allocationType === 'percentage' || category?.allocationType === 'amount' 
+        ? category.allocationType 
+        : 'percentage'
+    );
     const [allocationValue, setAllocationValue] = useState(category?.allocationValue?.toString() || '');
 
     const handleSubmit = (e: React.FormEvent) => {
