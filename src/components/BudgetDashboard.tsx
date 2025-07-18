@@ -54,6 +54,7 @@ interface Fund {
   id: string;
   name: string;
   allocatedAmount: number;
+  investedAmount: number;
 }
 
 interface PortfolioCategory {
@@ -63,6 +64,7 @@ interface PortfolioCategory {
   allocationValue: number;
   allocatedAmount: number;
   funds: Fund[];
+  investedAmount: number;
 }
 
 interface Portfolio {
@@ -72,6 +74,9 @@ interface Portfolio {
   allocationValue: number;
   allocatedAmount: number;
   categories: PortfolioCategory[];
+  investedAmount: number;
+  enableCategories?: boolean;
+  enableFunds?: boolean;
 }
 
 interface InvestmentPlan {
@@ -199,8 +204,13 @@ const BudgetDashboard = () => {
 
   const categorySpending = getSpendingByCategory();
   
-  // Updated total spent calculation: sum of all category spending
-  const totalSpent = categorySpending.need + categorySpending.want + categorySpending.savings + categorySpending.investments;
+  // Calculate total invested amount from investment plan
+  const getTotalInvestedAmount = () => {
+    return currentProfile.investmentPlan.portfolios.reduce((sum, portfolio) => sum + (portfolio.investedAmount || 0), 0);
+  };
+
+  // Updated total spent calculation: sum of all category spending except investments (use invested amount instead)
+  const totalSpent = categorySpending.need + categorySpending.want + categorySpending.savings + getTotalInvestedAmount();
   const totalRemaining = calculatedTotalBudget - totalSpent;
 
   const handleSalaryUpdate = (salary: number, percentage: number) => {
@@ -232,6 +242,56 @@ const BudgetDashboard = () => {
     };
     
     saveProfiles(updatedProfiles);
+  };
+
+  const updateInvestmentAmount = (portfolioId: string, categoryId: string | null, fundId: string | null, amount: number) => {
+    const updatedInvestmentPlan = { ...currentProfile.investmentPlan };
+    
+    // Find and update the specific portfolio/category/fund
+    const portfolioIndex = updatedInvestmentPlan.portfolios.findIndex(p => p.id === portfolioId);
+    if (portfolioIndex === -1) return;
+    
+    const portfolio = { ...updatedInvestmentPlan.portfolios[portfolioIndex] };
+    
+    if (!categoryId && !fundId) {
+      // Direct portfolio investment
+      portfolio.investedAmount = (portfolio.investedAmount || 0) + amount;
+    } else if (categoryId && !fundId) {
+      // Category level investment
+      const categoryIndex = portfolio.categories.findIndex(c => c.id === categoryId);
+      if (categoryIndex !== -1) {
+        portfolio.categories[categoryIndex].investedAmount = (portfolio.categories[categoryIndex].investedAmount || 0) + amount;
+        portfolio.investedAmount = (portfolio.investedAmount || 0) + amount;
+      }
+    } else if (categoryId && fundId) {
+      // Fund level investment
+      const categoryIndex = portfolio.categories.findIndex(c => c.id === categoryId);
+      if (categoryIndex !== -1) {
+        const fundIndex = portfolio.categories[categoryIndex].funds.findIndex(f => f.id === fundId);
+        if (fundIndex !== -1) {
+          portfolio.categories[categoryIndex].funds[fundIndex].investedAmount = (portfolio.categories[categoryIndex].funds[fundIndex].investedAmount || 0) + amount;
+          portfolio.categories[categoryIndex].investedAmount = (portfolio.categories[categoryIndex].investedAmount || 0) + amount;
+          portfolio.investedAmount = (portfolio.investedAmount || 0) + amount;
+        }
+      }
+    }
+    
+    updatedInvestmentPlan.portfolios[portfolioIndex] = portfolio;
+    
+    const updatedProfiles = {
+      ...profiles,
+      [currentUser]: {
+        ...profiles[currentUser],
+        investmentPlan: updatedInvestmentPlan
+      }
+    };
+    
+    saveProfiles(updatedProfiles);
+    
+    toast({
+      title: "Investment Updated",
+      description: `Added ₹${amount.toLocaleString()} to investment`,
+    });
   };
 
   const switchUser = () => {
@@ -1134,7 +1194,7 @@ const BudgetDashboard = () => {
                     Investments (Long-term Growth)
                   </CardTitle>
                   <p className="text-sm text-muted-foreground">
-                    Track your investment contributions like stocks, mutual funds, retirement
+                    Track your investment progress across portfolios, categories, and funds
                   </p>
                 </CardHeader>
                 <CardContent>
@@ -1143,12 +1203,31 @@ const BudgetDashboard = () => {
                       title="Investment Progress"
                       icon={TrendingUp}
                       allocated={allocatedAmounts.investments}
-                      spent={categorySpending.investments}
+                      spent={getTotalInvestedAmount()}
                       variant="investments"
                     />
                   </div>
-                  <ExpenseEntryDialog category="investments" categoryTitle="Investments" icon={TrendingUp} />
-                  <ExpenseTable category="investments" categoryTitle="Investments" />
+                  
+                  {/* Investment Portfolio Tracking */}
+                  <div className="space-y-6">
+                    <h3 className="text-lg font-semibold">Investment Portfolio Tracking</h3>
+                    
+                    {currentProfile.investmentPlan.portfolios.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <TrendingUp className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                        <p>No investment portfolios configured yet</p>
+                        <p className="text-sm">Configure your investment plan in the Config tab first</p>
+                      </div>
+                    ) : (
+                      currentProfile.investmentPlan.portfolios.map((portfolio) => (
+                        <InvestmentPortfolioCard 
+                          key={portfolio.id} 
+                          portfolio={portfolio} 
+                          onInvest={updateInvestmentAmount}
+                        />
+                      ))
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             </div>
@@ -1173,6 +1252,181 @@ const BudgetDashboard = () => {
         </Tabs>
       </div>
     </div>
+  );
+};
+
+const InvestmentPortfolioCard = ({ portfolio, onInvest }: { 
+  portfolio: Portfolio; 
+  onInvest: (portfolioId: string, categoryId: string | null, fundId: string | null, amount: number) => void;
+}) => {
+  const [investmentAmount, setInvestmentAmount] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedFund, setSelectedFund] = useState<string | null>(null);
+  
+  const investedAmount = portfolio.investedAmount || 0;
+  const remainingAmount = portfolio.allocatedAmount - investedAmount;
+  const progressPercentage = portfolio.allocatedAmount > 0 ? (investedAmount / portfolio.allocatedAmount) * 100 : 0;
+  
+  const handleInvest = () => {
+    const amount = parseFloat(investmentAmount);
+    if (amount > 0) {
+      onInvest(portfolio.id, selectedCategory, selectedFund, amount);
+      setInvestmentAmount('');
+      setSelectedCategory(null);
+      setSelectedFund(null);
+    }
+  };
+  
+  return (
+    <Card className="border-l-4 border-l-primary">
+      <CardHeader>
+        <CardTitle className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold">{portfolio.name}</h3>
+            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+              <span>Allocated: ₹{portfolio.allocatedAmount.toLocaleString()}</span>
+              <span>Invested: ₹{investedAmount.toLocaleString()}</span>
+              <span>Remaining: ₹{remainingAmount.toLocaleString()}</span>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-sm text-muted-foreground">Progress</p>
+            <p className="text-lg font-bold">{progressPercentage.toFixed(1)}%</p>
+          </div>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <Progress value={progressPercentage} className="h-2" />
+        
+        {/* Investment Entry Form */}
+        <div className="p-4 bg-muted/30 rounded-lg space-y-4">
+          <h4 className="font-medium">Add Investment</h4>
+          
+          {portfolio.enableCategories && portfolio.categories.length > 0 && (
+            <div className="space-y-2">
+              <Label>Select Category (Optional)</Label>
+              <Select value={selectedCategory || ''} onValueChange={(value) => {
+                setSelectedCategory(value || null);
+                setSelectedFund(null);
+              }}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Direct portfolio investment" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Direct portfolio investment</SelectItem>
+                  {portfolio.categories.map((category) => (
+                    <SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          
+          {selectedCategory && portfolio.enableFunds && (
+            <div className="space-y-2">
+              <Label>Select Fund (Optional)</Label>
+              <Select value={selectedFund || ''} onValueChange={setSelectedFund}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Direct category investment" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Direct category investment</SelectItem>
+                  {portfolio.categories
+                    .find(c => c.id === selectedCategory)?.funds
+                    .map((fund) => (
+                      <SelectItem key={fund.id} value={fund.id}>{fund.name}</SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          
+          <div className="flex gap-2">
+            <Input
+              type="number"
+              placeholder="Investment amount"
+              value={investmentAmount}
+              onChange={(e) => setInvestmentAmount(e.target.value)}
+              className="flex-1"
+            />
+            <Button onClick={handleInvest} disabled={!investmentAmount || parseFloat(investmentAmount) <= 0}>
+              <Plus className="h-4 w-4 mr-2" />
+              Invest
+            </Button>
+          </div>
+        </div>
+        
+        {/* Categories and Funds Progress */}
+        {portfolio.enableCategories && portfolio.categories.length > 0 && (
+          <div className="space-y-4">
+            <h4 className="font-medium">Categories Progress</h4>
+            {portfolio.categories.map((category) => (
+              <InvestmentCategoryCard key={category.id} category={category} portfolio={portfolio} />
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+const InvestmentCategoryCard = ({ category, portfolio }: { 
+  category: PortfolioCategory; 
+  portfolio: Portfolio;
+}) => {
+  const investedAmount = category.investedAmount || 0;
+  const remainingAmount = category.allocatedAmount - investedAmount;
+  const progressPercentage = category.allocatedAmount > 0 ? (investedAmount / category.allocatedAmount) * 100 : 0;
+  
+  return (
+    <Card className="border-l-4 border-l-secondary ml-4">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base">
+          <div className="flex items-center justify-between">
+            <h5 className="font-medium">{category.name}</h5>
+            <span className="text-xs text-muted-foreground">{progressPercentage.toFixed(1)}%</span>
+          </div>
+          <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
+            <span>₹{category.allocatedAmount.toLocaleString()}</span>
+            <span>•</span>
+            <span>Invested: ₹{investedAmount.toLocaleString()}</span>
+            <span>•</span>
+            <span>Remaining: ₹{remainingAmount.toLocaleString()}</span>
+          </div>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Progress value={progressPercentage} className="h-2 mb-4" />
+        
+        {portfolio.enableFunds && category.funds.length > 0 && (
+          <div className="space-y-2">
+            <h6 className="text-sm font-medium">Funds Progress</h6>
+            {category.funds.map((fund) => {
+              const fundInvested = fund.investedAmount || 0;
+              const fundRemaining = fund.allocatedAmount - fundInvested;
+              const fundProgress = fund.allocatedAmount > 0 ? (fundInvested / fund.allocatedAmount) * 100 : 0;
+              
+              return (
+                <div key={fund.id} className="p-3 bg-muted/30 rounded-lg ml-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="font-medium text-sm">{fund.name}</p>
+                    <span className="text-xs text-muted-foreground">{fundProgress.toFixed(1)}%</span>
+                  </div>
+                  <div className="flex items-center gap-4 text-xs text-muted-foreground mb-2">
+                    <span>₹{fund.allocatedAmount.toLocaleString()}</span>
+                    <span>•</span>
+                    <span>Invested: ₹{fundInvested.toLocaleString()}</span>
+                    <span>•</span>
+                    <span>Remaining: ₹{fundRemaining.toLocaleString()}</span>
+                  </div>
+                  <Progress value={fundProgress} className="h-1" />
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 };
 

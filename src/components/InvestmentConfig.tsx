@@ -23,6 +23,7 @@ interface PortfolioCategory {
   allocationValue: number;
   allocatedAmount: number;
   funds: Fund[];
+  investedAmount?: number;
 }
 
 interface Portfolio {
@@ -32,6 +33,9 @@ interface Portfolio {
   allocationValue: number;
   allocatedAmount: number;
   categories: PortfolioCategory[];
+  investedAmount?: number;
+  enableCategories?: boolean;
+  enableFunds?: boolean;
 }
 
 interface InvestmentPlan {
@@ -128,6 +132,10 @@ const InvestmentConfig = ({
       allocationValue,
       allocatedAmount: 0,
       categories: []
+      categories: [],
+      investedAmount: 0,
+      enableCategories: true,
+      enableFunds: true
     };
     
     const updatedPortfolios = updatePortfolioAmounts([...investmentPlan.portfolios, newPortfolio]);
@@ -135,10 +143,10 @@ const InvestmentConfig = ({
     setInvestmentPlan(newPlan);
   };
 
-  const updatePortfolio = (portfolioId: string, name: string, allocationType: 'percentage' | 'amount', allocationValue: number) => {
+  const updatePortfolio = (portfolioId: string, name: string, allocationType: 'percentage' | 'amount', allocationValue: number, enableCategories?: boolean, enableFunds?: boolean) => {
     const updatedPortfolios = investmentPlan.portfolios.map(portfolio =>
       portfolio.id === portfolioId
-        ? { ...portfolio, name, allocationType, allocationValue }
+        ? { ...portfolio, name, allocationType, allocationValue, enableCategories, enableFunds }
         : portfolio
     );
     
@@ -305,11 +313,13 @@ const InvestmentConfig = ({
     });
   };
 
-  const PortfolioDialog = ({ portfolio, onSave }: { portfolio?: Portfolio; onSave: (name: string, allocationType: 'percentage' | 'amount', allocationValue: number) => void }) => {
+  const PortfolioDialog = ({ portfolio, onSave }: { portfolio?: Portfolio; onSave: (name: string, allocationType: 'percentage' | 'amount', allocationValue: number, enableCategories?: boolean, enableFunds?: boolean) => void }) => {
     const [open, setOpen] = useState(false);
     const [name, setName] = useState(portfolio?.name || '');
     const [allocationType, setAllocationType] = useState<'percentage' | 'amount'>(portfolio?.allocationType || 'percentage');
     const [allocationValue, setAllocationValue] = useState(portfolio?.allocationValue?.toString() || '');
+    const [enableCategories, setEnableCategories] = useState(portfolio?.enableCategories ?? true);
+    const [enableFunds, setEnableFunds] = useState(portfolio?.enableFunds ?? true);
 
     const handleSubmit = (e: React.FormEvent) => {
       e.preventDefault();
@@ -322,11 +332,13 @@ const InvestmentConfig = ({
         return;
       }
 
-      onSave(name, allocationType, parseFloat(allocationValue));
+      onSave(name, allocationType, parseFloat(allocationValue), enableCategories, enableFunds);
       setOpen(false);
       if (!portfolio) {
         setName('');
         setAllocationValue('');
+        setEnableCategories(true);
+        setEnableFunds(true);
       }
     };
 
@@ -658,7 +670,7 @@ const InvestmentConfig = ({
                     <div className="flex items-center space-x-2">
                       <PortfolioDialog 
                         portfolio={portfolio} 
-                        onSave={(name, allocationType, allocationValue) => updatePortfolio(portfolio.id, name, allocationType, allocationValue)} 
+                        onSave={(name, allocationType, allocationValue, enableCategories, enableFunds) => updatePortfolio(portfolio.id, name, allocationType, allocationValue, enableCategories, enableFunds)} 
                       />
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
@@ -690,13 +702,19 @@ const InvestmentConfig = ({
                 <CardContent className="space-y-4">
                   <div className="flex items-center justify-between">
                     <h4 className="font-medium">Categories</h4>
-                    <CategoryDialog 
-                      portfolioId={portfolio.id} 
-                      onSave={(name, allocationType, allocationValue) => addCategory(portfolio.id, name, allocationType, allocationValue)} 
-                    />
+                    {portfolio.enableCategories && (
+                      <CategoryDialog 
+                        portfolioId={portfolio.id} 
+                        onSave={(name, allocationType, allocationValue) => addCategory(portfolio.id, name, allocationType, allocationValue)} 
+                      />
+                    )}
                   </div>
                   
-                  {portfolio.categories.length === 0 ? (
+                  {!portfolio.enableCategories ? (
+                    <div className="text-center py-4 text-muted-foreground text-sm">
+                      Categories are disabled for this portfolio
+                    </div>
+                  ) : portfolio.categories.length === 0 ? (
                     <div className="text-center py-4 text-muted-foreground text-sm">
                       No categories added yet
                     </div>
@@ -754,14 +772,20 @@ const InvestmentConfig = ({
                           <CardContent>
                             <div className="flex items-center justify-between mb-3">
                               <h6 className="text-sm font-medium">Funds</h6>
-                              <FundDialog 
-                                portfolioId={portfolio.id}
-                                categoryId={category.id}
-                                onSave={(name) => addFund(portfolio.id, category.id, name)} 
-                              />
+                              {portfolio.enableFunds && (
+                                <FundDialog 
+                                  portfolioId={portfolio.id}
+                                  categoryId={category.id}
+                                  onSave={(name) => addFund(portfolio.id, category.id, name)} 
+                                />
+                              )}
                             </div>
                             
-                            {category.funds.length === 0 ? (
+                            {!portfolio.enableFunds ? (
+                              <div className="text-center py-3 text-muted-foreground text-sm">
+                                Funds are disabled for this portfolio
+                              </div>
+                            ) : category.funds.length === 0 ? (
                               <div className="text-center py-3 text-muted-foreground text-sm">
                                 No funds added yet
                               </div>
@@ -777,12 +801,14 @@ const InvestmentConfig = ({
                                       </p>
                                     </div>
                                     <div className="flex items-center space-x-2">
-                                      <FundDialog 
-                                        portfolioId={portfolio.id}
-                                        categoryId={category.id}
-                                        fund={fund}
-                                        onSave={(name) => updateFund(portfolio.id, category.id, fund.id, name)} 
-                                      />
+                                      {portfolio.enableFunds && (
+                                        <FundDialog 
+                                          portfolioId={portfolio.id}
+                                          categoryId={category.id}
+                                          fund={fund}
+                                          onSave={(name) => updateFund(portfolio.id, category.id, fund.id, name)} 
+                                        />
+                                      )}
                                       <AlertDialog>
                                         <AlertDialogTrigger asChild>
                                           <Button variant="ghost" size="sm">
