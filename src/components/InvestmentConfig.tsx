@@ -371,7 +371,7 @@ const InvestmentConfig = ({
               <Label>Allocation Type *</Label>
               <Select value={allocationType} onValueChange={(value: 'percentage' | 'amount') => setAllocationType(value)}>
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Select allocation type" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="percentage">Percentage</SelectItem>
@@ -460,7 +460,7 @@ const InvestmentConfig = ({
               <Label>Allocation Type *</Label>
               <Select value={allocationType} onValueChange={(value: 'percentage' | 'amount') => setAllocationType(value)}>
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Select allocation type" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="percentage">Percentage</SelectItem>
