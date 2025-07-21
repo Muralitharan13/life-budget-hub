@@ -612,12 +612,12 @@ export function useBudgetData(month: number, year: number, profileName: string) 
       } else {
         // Create new budget period
         console.log('Creating new budget period...');
-        const { data: newPeriod, error: createError } = await supabase
+                const { data: newPeriod, error: createError } = await supabase
           .from('budget_periods')
           .insert({
             user_id: user.id,
-            budget_month: month,
-            budget_year: year,
+            budget_month: validMonth,
+            budget_year: validYear,
             is_active: true,
           })
           .select('id')
