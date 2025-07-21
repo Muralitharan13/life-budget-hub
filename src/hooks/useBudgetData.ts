@@ -576,11 +576,64 @@ export function useBudgetData(month: number, year: number, profileName: string) 
       transaction: transaction
     });
 
-    try {
+        try {
+      // First, ensure we have a budget period
+      let budgetPeriodId = null;
+
+      console.log('Looking for budget period:', {
+        user_id: user.id,
+        budget_month: month,
+        budget_year: year
+      });
+
+      const { data: existingPeriod, error: periodError } = await supabase
+        .from('budget_periods')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('budget_month', month)
+        .eq('budget_year', year)
+        .maybeSingle();
+
+      if (periodError && periodError.code !== 'PGRST116') {
+        console.error('Error finding budget period:', periodError);
+        throw new Error(`Failed to find budget period: ${periodError.message}`);
+      }
+
+      if (existingPeriod) {
+        budgetPeriodId = existingPeriod.id;
+        console.log('Found existing budget period:', budgetPeriodId);
+      } else {
+        // Create new budget period
+        console.log('Creating new budget period...');
+        const { data: newPeriod, error: createError } = await supabase
+          .from('budget_periods')
+          .insert({
+            user_id: user.id,
+            budget_month: month,
+            budget_year: year,
+            is_active: true,
+          })
+          .select('id')
+          .single();
+
+        if (createError) {
+          console.error('Error creating budget period:', createError);
+          throw new Error(`Failed to create budget period: ${createError.message}`);
+        }
+
+        if (newPeriod) {
+          budgetPeriodId = newPeriod.id;
+          console.log('Created new budget period:', budgetPeriodId);
+        } else {
+          throw new Error("Budget period creation returned no data");
+        }
+      }
+
       const transactionData = {
                 ...transaction,
         user_id: user.id,
         profile_name: profileName,
+        budget_period_id: budgetPeriodId,
                 budget_month: month,
         budget_year: year,
         transaction_date: transaction.transaction_date || new Date().toISOString().split('T')[0],
