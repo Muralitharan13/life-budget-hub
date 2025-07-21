@@ -633,8 +633,27 @@ export function useBudgetData(month: number, year: number, profileName: string) 
           console.log('Created new budget period:', budgetPeriodId);
         } else {
           throw new Error("Budget period creation returned no data");
-        }
+                }
       }
+
+      // Validate that we have a valid budget_period_id
+      if (!budgetPeriodId) {
+        throw new Error("Failed to create or find budget period - cannot insert transaction");
+      }
+
+      // Verify the budget period actually exists
+      const { data: periodCheck, error: checkError } = await supabase
+        .from('budget_periods')
+        .select('id, budget_year, budget_month')
+        .eq('id', budgetPeriodId)
+        .single();
+
+      if (checkError || !periodCheck) {
+        console.error('Budget period validation failed:', checkError);
+        throw new Error(`Budget period ${budgetPeriodId} does not exist or is not accessible`);
+      }
+
+      console.log('Budget period verified:', periodCheck);
 
             const transactionData = {
                 ...transaction,
