@@ -242,9 +242,10 @@ export interface Database {
           original_transaction_id: string | null;
           status: "active" | "cancelled" | "refunded" | "partial_refund";
           is_deleted: boolean;
-          created_at: string;
+                    created_at: string;
           updated_at: string;
           deleted_at: string | null;
+          time: string | null;
         };
                 Insert: {
           id?: string;
