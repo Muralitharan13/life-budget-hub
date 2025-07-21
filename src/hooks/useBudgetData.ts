@@ -636,13 +636,13 @@ export function useBudgetData(month: number, year: number, profileName: string) 
         }
       }
 
-      const transactionData = {
+            const transactionData = {
                 ...transaction,
         user_id: user.id,
         profile_name: profileName,
         budget_period_id: budgetPeriodId,
-                budget_month: month,
-        budget_year: year,
+                budget_month: validMonth,
+        budget_year: validYear,
         transaction_date: transaction.transaction_date || new Date().toISOString().split('T')[0],
       };
 
