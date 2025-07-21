@@ -1438,9 +1438,26 @@ const BudgetDashboard = () => {
         rawError: error,
         stack: error instanceof Error ? error.stack : undefined
       });
+            // Extract meaningful error message
+      let errorMessage = "There was an error adding your expense. Please try again.";
+
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (error && typeof error === 'object') {
+        if (error.message) {
+          errorMessage = error.message;
+        } else if (error.error_description) {
+          errorMessage = error.error_description;
+        } else if (error.details) {
+          errorMessage = error.details;
+        } else {
+          errorMessage = JSON.stringify(error);
+        }
+      }
+
       toast({
         title: "Failed to Add Expense",
-        description: "There was an error adding your expense. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     }

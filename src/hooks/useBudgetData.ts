@@ -574,15 +574,96 @@ export function useBudgetData(month: number, year: number, profileName: string) 
       profileName,
       user: user.id,
       transaction: transaction
-    });
+        });
 
-    try {
-      const transactionData = {
+        // Ensure we have valid month and year values, with fallbacks
+    const currentDate = new Date();
+    const validMonth = month && month >= 1 && month <= 12 ? month : currentDate.getMonth() + 1;
+    const validYear = year && year >= 2020 ? year : currentDate.getFullYear();
+
+    // Initialize budget period ID
+    let budgetPeriodId = null;
+
+            try {
+      // First, ensure we have a budget period
+
+      console.log('Looking for budget period:', {
+        user_id: user.id,
+        budget_month: validMonth,
+        budget_year: validYear,
+        original_month: month,
+        original_year: year
+      });
+
+      const { data: existingPeriod, error: periodError } = await supabase
+        .from('budget_periods')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('budget_month', validMonth)
+        .eq('budget_year', validYear)
+        .maybeSingle();
+
+      if (periodError && periodError.code !== 'PGRST116') {
+        console.error('Error finding budget period:', periodError);
+        throw new Error(`Failed to find budget period: ${periodError.message}`);
+      }
+
+      if (existingPeriod) {
+        budgetPeriodId = existingPeriod.id;
+        console.log('Found existing budget period:', budgetPeriodId);
+      } else {
+        // Create new budget period
+        console.log('Creating new budget period...');
+                const { data: newPeriod, error: createError } = await supabase
+          .from('budget_periods')
+          .insert({
+            user_id: user.id,
+            budget_month: validMonth,
+            budget_year: validYear,
+            is_active: true,
+          })
+          .select('id')
+          .single();
+
+        if (createError) {
+          console.error('Error creating budget period:', createError);
+          throw new Error(`Failed to create budget period: ${createError.message}`);
+        }
+
+        if (newPeriod) {
+          budgetPeriodId = newPeriod.id;
+          console.log('Created new budget period:', budgetPeriodId);
+        } else {
+          throw new Error("Budget period creation returned no data");
+                }
+      }
+
+      // Validate that we have a valid budget_period_id
+      if (!budgetPeriodId) {
+        throw new Error("Failed to create or find budget period - cannot insert transaction");
+      }
+
+      // Verify the budget period actually exists
+      const { data: periodCheck, error: checkError } = await supabase
+        .from('budget_periods')
+        .select('id, budget_year, budget_month')
+        .eq('id', budgetPeriodId)
+        .single();
+
+      if (checkError || !periodCheck) {
+        console.error('Budget period validation failed:', checkError);
+        throw new Error(`Budget period ${budgetPeriodId} does not exist or is not accessible`);
+      }
+
+      console.log('Budget period verified:', periodCheck);
+
+            const transactionData = {
                 ...transaction,
         user_id: user.id,
         profile_name: profileName,
-                budget_month: month,
-        budget_year: year,
+        budget_period_id: budgetPeriodId,
+                budget_month: validMonth,
+        budget_year: validYear,
         transaction_date: transaction.transaction_date || new Date().toISOString().split('T')[0],
       };
 
@@ -594,10 +675,26 @@ export function useBudgetData(month: number, year: number, profileName: string) 
         .select()
         .single();
 
-      if (error) throw error;
+            if (error) throw error;
       setTransactions(prev => [data, ...prev]);
       return data;
     } catch (err) {
+      console.error('addTransaction error details:', {
+        errorId: 'ADD_TRANSACTION_007',
+        source: 'useBudgetData.ts',
+        timestamp: new Date().toISOString(),
+        message: err instanceof Error ? err.message : 'Unknown error',
+        code: err?.code || 'No code available',
+        details: err?.details || 'No details available',
+        hint: err?.hint || 'No hint available',
+        rawError: err,
+        user: user.id,
+        profileName,
+        validMonth,
+        validYear,
+        budgetPeriodId,
+        transactionData: JSON.stringify(transaction, null, 2)
+      });
       throw err;
     }
   };

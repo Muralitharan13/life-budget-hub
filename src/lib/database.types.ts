@@ -206,7 +206,7 @@ export interface Database {
         ];
       };
             transactions: {
-        Row: {
+                Row: {
           id: string;
           user_id: string;
           profile_name: string;
@@ -220,7 +220,7 @@ export interface Database {
             | "investment"
             | "savings"
             | "transfer";
-          category: "need" | "want" | "savings" | "investments";
+          category: "need" | "want" | "savings" | "investments" | "unplanned";
           amount: number;
           description: string | null;
           notes: string | null;
@@ -242,9 +242,10 @@ export interface Database {
           original_transaction_id: string | null;
           status: "active" | "cancelled" | "refunded" | "partial_refund";
           is_deleted: boolean;
-          created_at: string;
+                    created_at: string;
           updated_at: string;
           deleted_at: string | null;
+          time: string | null;
         };
                 Insert: {
           id?: string;
@@ -253,14 +254,14 @@ export interface Database {
           budget_period_id: string;
           budget_year: number;
           budget_month: number;
-          type:
+                    type:
             | "expense"
             | "income"
             | "refund"
             | "investment"
             | "savings"
             | "transfer";
-          category: "need" | "want" | "savings" | "investments";
+          category: "need" | "want" | "savings" | "investments" | "unplanned";
           amount: number;
           description?: string | null;
           notes?: string | null;
@@ -293,14 +294,14 @@ export interface Database {
           budget_period_id?: string;
           budget_year?: number;
           budget_month?: number;
-          type?:
+                    type?:
             | "expense"
             | "income"
             | "refund"
             | "investment"
             | "savings"
             | "transfer";
-          category?: "need" | "want" | "savings" | "investments";
+          category?: "need" | "want" | "savings" | "investments" | "unplanned";
           amount?: number;
           description?: string | null;
           notes?: string | null;
