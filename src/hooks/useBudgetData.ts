@@ -576,14 +576,16 @@ export function useBudgetData(month: number, year: number, profileName: string) 
       transaction: transaction
         });
 
-    // Ensure we have valid month and year values, with fallbacks
+        // Ensure we have valid month and year values, with fallbacks
     const currentDate = new Date();
     const validMonth = month && month >= 1 && month <= 12 ? month : currentDate.getMonth() + 1;
     const validYear = year && year >= 2020 ? year : currentDate.getFullYear();
 
+    // Initialize budget period ID
+    let budgetPeriodId = null;
+
             try {
       // First, ensure we have a budget period
-      let budgetPeriodId = null;
 
       console.log('Looking for budget period:', {
         user_id: user.id,
