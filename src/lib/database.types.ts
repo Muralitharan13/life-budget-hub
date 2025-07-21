@@ -206,7 +206,7 @@ export interface Database {
         ];
       };
             transactions: {
-        Row: {
+                Row: {
           id: string;
           user_id: string;
           profile_name: string;
@@ -220,7 +220,7 @@ export interface Database {
             | "investment"
             | "savings"
             | "transfer";
-          category: "need" | "want" | "savings" | "investments";
+          category: "need" | "want" | "savings" | "investments" | "unplanned";
           amount: number;
           description: string | null;
           notes: string | null;
