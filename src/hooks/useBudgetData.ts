@@ -673,10 +673,26 @@ export function useBudgetData(month: number, year: number, profileName: string) 
         .select()
         .single();
 
-      if (error) throw error;
+            if (error) throw error;
       setTransactions(prev => [data, ...prev]);
       return data;
     } catch (err) {
+      console.error('addTransaction error details:', {
+        errorId: 'ADD_TRANSACTION_007',
+        source: 'useBudgetData.ts',
+        timestamp: new Date().toISOString(),
+        message: err instanceof Error ? err.message : 'Unknown error',
+        code: err?.code || 'No code available',
+        details: err?.details || 'No details available',
+        hint: err?.hint || 'No hint available',
+        rawError: err,
+        user: user.id,
+        profileName,
+        validMonth,
+        validYear,
+        budgetPeriodId,
+        transactionData: JSON.stringify(transaction, null, 2)
+      });
       throw err;
     }
   };
