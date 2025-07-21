@@ -293,14 +293,14 @@ export interface Database {
           budget_period_id?: string;
           budget_year?: number;
           budget_month?: number;
-          type?:
+                    type?:
             | "expense"
             | "income"
             | "refund"
             | "investment"
             | "savings"
             | "transfer";
-          category?: "need" | "want" | "savings" | "investments";
+          category?: "need" | "want" | "savings" | "investments" | "unplanned";
           amount?: number;
           description?: string | null;
           notes?: string | null;
